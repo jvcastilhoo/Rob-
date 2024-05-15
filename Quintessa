@@ -1,0 +1,99 @@
+import robocode.*;
+
+public class Quintessa extends AdvancedRobot {
+
+    private int moveDirection = 1; // Direção inicial do movimento
+    private boolean scanned = false; // Flag para saber se já escaneou
+    private boolean evading = false; // Flag para saber se está evitando balas
+    private double highestEnergy = Double.MIN_VALUE; // Armazena a energia do inimigo com mais energia
+
+    public void run() {
+        setColors(Color.blue, Color.red, Color.green); // Defina a cor do seu robô
+        setAdjustRadarForRobotTurn(true); // Mantenha o radar estável enquanto o robô gira
+        setAdjustGunForRobotTurn(true); // Mantenha a arma estável enquanto o robô gira
+
+        while (true) {
+            // Movimento inteligente
+            setAhead(100 * moveDirection);
+            setTurnRight(90);
+            execute();
+
+            // Gire o radar para escanear
+            setTurnRadarRight(360);
+            execute();
+        }
+    }
+
+    public void onScannedRobot(ScannedRobotEvent e) {
+        // Ajuste o radar para direcionar o inimigo
+        setTurnRadarRight(getHeading() - getRadarHeading() + e.getBearing());
+
+        // Ajuste a arma para mirar no inimigo
+        setTurnGunRight(getHeading() - getGunHeading() + e.getBearing());
+
+        // Atire com potência proporcional à distância
+        fire(Math.min(3, getEnergy() / 4));
+
+        // Alterne a direção do movimento
+        moveDirection *= -1;
+
+        // Sinalize que o inimigo foi escaneado
+        scanned = true;
+
+        // Verifica se o inimigo tem mais energia que o inimigo com mais energia registrado
+        if (e.getEnergy() > highestEnergy) {
+            highestEnergy = e.getEnergy();
+            // Move-se em direção ao inimigo com mais energia
+            setTurnRight(e.getBearing());
+            setAhead(e.getDistance() / 2);
+        }
+    }
+
+    public void onHitByBullet(HitByBulletEvent e) {
+        // Se não estiver evitando balas, comece a evadir
+        if (!evading) {
+            evading = true;
+            setTurnRight(e.getBearing() + 90);
+            setAhead(100);
+        }
+    }
+
+    public void onHitWall(HitWallEvent e) {
+        // Mude a direção do movimento ao atingir a parede
+        moveDirection *= -1;
+
+        // Se estiver evitando balas, pare de evadir
+        if (evading) {
+            evading = false;
+        }
+    }
+
+    public void onHitRobot(HitRobotEvent e) {
+        // Mova-se para trás quando colidir com outro robô
+        setBack(100);
+
+        // Se estiver evitando balas, pare de evadir
+        if (evading) {
+            evading = false;
+        }
+    }
+
+    public void onRobotDeath(RobotDeathEvent e) {
+        // Resete o flag de escaneamento quando um inimigo morre
+        scanned = false;
+        // Se o inimigo morto tinha a maior energia, resete a energia mais alta
+        if (e.getEnergy() == highestEnergy) {
+            highestEnergy = Double.MIN_VALUE;
+        }
+    }
+
+    public void onWin(WinEvent e) {
+        // Celebre sua vitória!
+        System.out.println("Vitória!");
+    }
+
+    public void onDeath(DeathEvent e) {
+        // Lamente sua derrota :(
+        System.out.println("Derrota...");
+    }
+}
